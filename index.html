@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Churchable - Find Hotels Near MDP Church of God</title>
+    <title>Churchable - Find Nearby Hotels and Motels</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         /* Basic reset */
         * {
@@ -14,8 +15,9 @@
 
         /* Style the body */
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to bottom, #333, #111);
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -26,34 +28,88 @@
         /* Style the container */
         .container {
             text-align: center;
-            background: white;
+            width: 80%;
+            max-width: 1000px;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
 
-        /* Style the button */
-        .button {
-            display: inline-block;
-            font-size: 16px;
-            color: white;
-            background-color: #007bff;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 20px;
+        /* Style the heading */
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            background: linear-gradient(to right, #aaa, #666);
+            -webkit-background-clip: text;
+            color: transparent;
         }
 
-        .button:hover {
-            background-color: #0056b3;
+        /* Style the map */
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
         }
     </style>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Churchable</h1>
-        <p>Welcome! Click the button below to find nearby hotels in Montréal-Nord, QC, near MDP Church of God.</p>
-        <a href="https://www.booking.com/searchresults.html?ss=5220+Rue+de+Charleroi,+Montréal-Nord,+QC+H1G+5B5" class="button">Find Nearby Hotels</a>
+        <h1>Find Hotels and Motels Near MDP Church of God</h1>
+        <div id="map"></div>
     </div>
+    <script>
+        // Initialize the map centered on the church
+        var map = L.map('map').setView([45.6081, -73.6316], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Add marker for the church at the correct address
+        var churchMarker = L.marker([45.6081, -73.6316]).addTo(map);
+        churchMarker.bindPopup("<b>MDP Church of God</b>").openPopup();
+
+        // Function to fetch hotels and motels nearby using Overpass API
+        function fetchAccommodations() {
+            var overpassUrl = "https://overpass-api.de/api/interpreter";
+            var query = `
+            [out:json];
+            (
+              node["tourism"="hotel"](around:5000,45.6081,-73.6316);
+              node["tourism"="motel"](around:5000,45.6081,-73.6316);
+              node["tourism"="hotel"](around:4200,45.5469,-73.6205);
+              node["tourism"="motel"](around:4200,45.5469,-73.6205);
+            );
+            out body;
+            `;
+
+            axios.post(overpassUrl, query)
+                .then(function(response) {
+                    var accommodations = response.data.elements;
+                    accommodations.forEach(function(accommodation) {
+                        var marker = L.marker([accommodation.lat, accommodation.lon]).addTo(map);
+                        var popupContent = "<b>" + (accommodation.tags.name || "Unnamed") + "</b>";
+
+                        if (accommodation.tags.website) {
+                            popupContent += `<br><a href='${accommodation.tags.website}' target='_blank'>Visit Website</a>`;
+                        } else if (accommodation.tags.phone) {
+                            popupContent += `<br>Phone: ${accommodation.tags.phone}`;
+                        }
+
+                        marker.bindPopup(popupContent);
+                    });
+                })
+                .catch(function(error) {
+                    console.error("Error fetching accommodations:", error);
+                });
+        }
+
+        // Fetch hotels and motels when the page loads
+        fetchAccommodations();
+    </script>
 </body>
 </html>
